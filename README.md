@@ -1,5 +1,5 @@
 # Generative Image Inpainting with Segmentation Confusion Adversarial Training and Contrastive Learning
-![figure](https://github.com/zzw-zjgsu/Generative-Image-Inpainting/blob/master/docs/framework.PNG?raw=true)
+![figure](https://github.com/zzw-zjgsu/Generative-Image-Inpainting/blob/main/docs/framework.PNG?raw=true)
 ### [Arxiv Paper](https://arxiv.org/abs/2303.13133) | 
 
 Generative Image Inpainting with Segmentation Confusion Adversarial Training and Contrastive Learning<br>
@@ -29,7 +29,7 @@ We present a new adversarial training framework for image inpainting with segmen
 
 <!-- ------------------------------------------------ -->
 ## Results
-![Places2_results](https://github.com/zzw-zjgsu/Generative-Image-Inpainting/blob/master/docs/places2_results.PNG?raw=true)
+![Places2_results](https://github.com/zzw-zjgsu/Generative-Image-Inpainting/blob/main/docs/places2_results.PNG?raw=true)
 
 <!-- -------------------------------- -->
 ## Prerequisites 
