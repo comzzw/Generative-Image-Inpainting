@@ -88,7 +88,7 @@ conda activate inpainting
 
 <!-- ------------------------------------------------------------------- -->
 ## Pretrained models
-[CELEBA](https://drive.google.com/file/d/1DGbRu9ucX6zRVKz4psL3RiwwiY2_Awx5/view?usp=share_link) |
+[CelebA](https://drive.google.com/file/d/1DGbRu9ucX6zRVKz4psL3RiwwiY2_Awx5/view?usp=share_link) |
 [Places2](https://drive.google.com/file/d/165ej_2Dd8L7_9Xa1EOSxTXs4BT1rJ3q6/view?usp=share_link)
 
 <!-- ------------------------ -->
