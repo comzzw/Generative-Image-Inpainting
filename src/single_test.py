@@ -1,22 +1,15 @@
-from locale import normalize
 import os
-import argparse
 import importlib
-import numpy as np
 from PIL import Image
 from glob import glob
+from itertools import islice
+from utils.option import args 
 
 import torch
 import torch.nn as nn
-from torch.utils import data
-import torchvision
 from torchvision import transforms
-from torchvision.transforms import ToTensor, Resize
 from torchvision.utils import save_image
-from pytorch_msssim import ssim
-import math
-from itertools import islice
-from utils.option import args 
+
 
 def main_worker(args, use_gpu=True): 
     # load image and mask

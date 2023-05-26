@@ -5,6 +5,8 @@ parser = argparse.ArgumentParser(description='Image Inpainting')
 # data specifications 
 parser.add_argument('--dir_image', type=str, default='../../dataset',
                     help='image dataset directory for training or testing')
+parser.add_argument('--scan_subdirs', action='store_true',
+                    help='scan subdirs for images, e.g., Places2 dataset')
 parser.add_argument('--dir_mask', type=str, default='../../dataset',
                     help='mask dataset directory for training or testing')               
 parser.add_argument('--ipath', type=str, default='../../dataset',
@@ -12,11 +14,16 @@ parser.add_argument('--ipath', type=str, default='../../dataset',
 parser.add_argument('--mpath', type=str, default='../../dataset',
                     help='mask path for single image test')   
 parser.add_argument('--dataset', type=str, default='Places2',
-                    help='training dataset: Places2 or CelebA')
+                    help='training dataset: (Places2 | CelebA)')
 parser.add_argument('--image_size', type=int, default=256,
                     help='image size used during training')
+parser.add_argument('--crop_size', type=int, default=256,
+                    help='image crop size used during training, use 178 for CelebA dataset')
+parser.add_argument('--transform', type=str, default='randomcrop',
+                    help='image transformation type: (randomcrop | centercrop | resize_and_crop), use centercrop and randomcrop for CelebA and Places2 respectively')
 parser.add_argument('--mask_type', type=str, default='pconv',
-                    help='mask used during training')
+                    help='mask used during training: (pconv| centered | random), pconv needs to specify --dir_mask')
+
 
 # model specifications 
 parser.add_argument('--model', type=str, default='model',
@@ -24,11 +31,17 @@ parser.add_argument('--model', type=str, default='model',
 parser.add_argument('--block_num', type=int, default=8,
                     help='number of AOT blocks')
 parser.add_argument('--rates', type=str, default='1+2+4+8',
-                    help='dilation rates used in AOT block')    
+                    help='dilation rates used in AOT block')
+parser.add_argument('--netD', type=str, default='Unet',
+                    help='discriminator network: (Unet | ResUnet)')
+parser.add_argument('--use_D_attn', action='store_true',
+                    help='use self-attention in netD')    
+parser.add_argument('--no_SN', action='store_true',
+                    help='not use spectral normalization in netD')    
 parser.add_argument('--globalgan_type', type=str, default='hingegan',
-                    help='global adversarial training')                                
-parser.add_argument('--SCAT_type', type=str, default='masked_hingegan',
-                    help='segmentation confusion adversarial training')
+                    help='global adversarial training: (hingegan | nsgan | lsgan)')                                
+parser.add_argument('--SCAT_type', type=str, default='hingegan',
+                    help='segmentation confusion adversarial training: (hingegan | nsgan | lsgan)')
 parser.add_argument('--no_mlp', action='store_true',
                     help='use mlp for semantic contrastive loss')               
 
@@ -82,7 +95,7 @@ parser.add_argument('--save_dir', type=str, default='../experiments',
 parser.add_argument('--tensorboard', action='store_true',
                     help='default: false, since it will slow training. use it for debugging')
 
-# test and demo specifications   
+# test specifications   
 parser.add_argument('--pre_train', type=str, default=None,
                     help='path to pretrained models')
 parser.add_argument('--outputs', type=str, default='../outputs', 

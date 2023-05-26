@@ -1,24 +1,21 @@
-from locale import normalize
 import os
-import argparse
+import math
+import random
 import importlib
-import numpy as np
 from PIL import Image
 from glob import glob
+from tqdm import tqdm
+from itertools import islice
+from pytorch_msssim import ssim
+
+from utils.option import args 
 
 import torch
 import torch.nn as nn
 from torch.utils import data
-import torchvision
 from torchvision import transforms
-from torchvision.transforms import ToTensor, Resize
 from torchvision.utils import save_image
-from pytorch_msssim import ssim
-import math
-import random
-from itertools import islice
-from utils.option import args 
-from tqdm import tqdm
+
 
 class Dataset(torch.utils.data.Dataset):
     def __init__(self, img_root, mask_root, size, shuffle=False):

@@ -1,4 +1,5 @@
 import os
+
 import torch
 import torch.multiprocessing as mp
 
@@ -22,7 +23,7 @@ def main_worker(id, ngpus_per_node, args):
         args.save_dir, f'{args.model}_{args.dataset}_{args.mask_type}{args.image_size}')
         
     if (not args.distributed) or args.global_rank == 0:
-        os.makedirs(args.save_dir, exist_ok=True)
+        os.makedirs(os.path.join(args.save_dir, 'ckpt'), exist_ok=True)
         with open(os.path.join(args.save_dir, 'config.txt'), 'a') as f:
             for key, val in vars(args).items(): 
                 f.write(f'{key}: {val}\n')
@@ -32,7 +33,7 @@ def main_worker(id, ngpus_per_node, args):
     trainer.train()
 
 if __name__ == "__main__":
-    os.environ["CUDA_VISIBLE_DEVICES"]="0,1"
+    os.environ["CUDA_VISIBLE_DEVICES"]="0"
     torch.manual_seed(args.seed)
     torch.backends.cudnn.enabled = True
     torch.backends.cudnn.benchmark = True

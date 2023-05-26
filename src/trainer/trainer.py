@@ -11,7 +11,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 
 from data import create_loader 
 from loss import loss as loss_module
-from .common import timer, reduce_loss_dict
+from trainer.common import timer, reduce_loss_dict
 
 
 class Trainer():
@@ -20,21 +20,33 @@ class Trainer():
         self.iteration = 0
 
         # setup data set and data loader
-        self.dataloader = create_loader(args)
+        self.dataloader, self.dataloader_generator = create_loader(args)
 
         # set up losses and metrics
         self.rec_loss_func = {
             key: getattr(loss_module, key)() for key, val in args.rec_loss.items()}
-        self.global_adv_loss = getattr(loss_module, args.globalgan_type)()
-        self.SCAT_loss = getattr(loss_module, args.SCAT_type)()
+        
+        self.dualadv_loss = loss_module.dualadv(args)
 
         # Image generator input: [rgb(3) + mask(1)], discriminator input: [rgb(3)]
         net = importlib.import_module('model.'+args.model)
         
         self.netG = net.InpaintGenerator(args).cuda()
-        self.netD = net.UnetDiscriminator().cuda()
-        self.contrastive_loss = getattr(loss_module, 'Contrastive')(self.netD, args.no_mlp)
+        if args.netD == 'Unet':
+            self.netD = net.UnetDiscriminator(args).cuda()
+        elif args.netD == 'ResUnet':
+            self.netD = net.ResUnetDiscriminator(args).cuda()
+        self.contrastive_loss = getattr(loss_module, 'Contrastive')(args, self.netD, args.no_mlp)
         
+        if args.global_rank == 0:
+            self.load()
+        
+        if args.distributed:
+            self.netG = DDP(self.netG, device_ids= [args.local_rank], output_device=[args.local_rank])
+            self.netD = DDP(self.netD, device_ids= [args.local_rank], output_device=[args.local_rank])
+            if not args.no_mlp:
+                self.contrastive_loss.mlp = DDP(self.contrastive_loss.mlp, device_ids= [args.local_rank], output_device=[args.local_rank])
+
         if not args.no_mlp:
             self.optimG = torch.optim.Adam(
                 list(self.netG.parameters())+list(self.contrastive_loss.mlp.parameters()), lr=args.lrg, betas=(args.beta1, args.beta2))    
@@ -44,18 +56,13 @@ class Trainer():
         self.optimD = torch.optim.Adam(
             self.netD.parameters(), lr=args.lrd, betas=(args.beta1, args.beta2))
         
-        self.load()
-        if args.distributed:
-            self.netG = DDP(self.netG, device_ids= [args.local_rank], output_device=[args.local_rank])
-            self.netD = DDP(self.netD, device_ids= [args.local_rank], output_device=[args.local_rank])
-
         if args.tensorboard: 
             self.writer = SummaryWriter(os.path.join(args.save_dir, 'log'))
             
 
     def load(self):
         try: 
-            gpath = sorted(list(glob(os.path.join(self.args.save_dir, 'G*.pt'))))[-1]
+            gpath = sorted(list(glob(os.path.join(self.args.save_dir, 'ckpt', 'G*.pt'))))[-1]
             self.netG.load_state_dict(torch.load(gpath, map_location='cuda'))
             self.iteration = int(os.path.basename(gpath)[1:-3])
             if self.args.global_rank == 0: 
@@ -64,7 +71,7 @@ class Trainer():
             pass 
 
         try: 
-            dpath = sorted(list(glob(os.path.join(self.args.save_dir, 'D*.pt'))))[-1]
+            dpath = sorted(list(glob(os.path.join(self.args.save_dir, 'ckpt', 'D*.pt'))))[-1]
             data = torch.load(dpath, map_location='cuda')
             if not self.args.no_mlp:
                 self.netD.load_state_dict(data['netD'])
@@ -79,7 +86,7 @@ class Trainer():
             pass
         
         try: 
-            opath = sorted(list(glob(os.path.join(self.args.save_dir, 'O*.pt'))))[-1]
+            opath = sorted(list(glob(os.path.join(self.args.save_dir, 'ckpt', 'O*.pt'))))[-1]
             data = torch.load(opath, map_location='cuda')
             self.optimG.load_state_dict(data['optimG'])
             self.optimD.load_state_dict(data['optimD'])
@@ -94,30 +101,30 @@ class Trainer():
             print(f'\nsaving {self.iteration} model to {self.args.save_dir} ...')
             if isinstance(self.netG, DDP):
                 torch.save(self.netG.module.state_dict(),                       
-                    os.path.join(self.args.save_dir, f'G{str(self.iteration).zfill(7)}.pt'))           
+                    os.path.join(self.args.save_dir, 'ckpt', f'G{str(self.iteration).zfill(7)}.pt'))           
             else:
-                torch.save(self.netD.state_dict(), 
-                    os.path.join(self.args.save_dir, f'G{str(self.iteration).zfill(7)}.pt'))                              
+                torch.save(self.netG.state_dict(), 
+                    os.path.join(self.args.save_dir, 'ckpt', f'G{str(self.iteration).zfill(7)}.pt'))                              
             if isinstance(self.netD, DDP):
                 if not self.args.no_mlp:
                     torch.save(
                         {'netD': self.netD.module.state_dict(), 'MLP': self.contrastive_loss.mlp.module.state_dict()}, 
-                        os.path.join(self.args.save_dir, f'D{str(self.iteration).zfill(7)}.pt'))
+                        os.path.join(self.args.save_dir, 'ckpt', f'D{str(self.iteration).zfill(7)}.pt'))
                 else:
                     torch.save(self.netD.module.state_dict(), 
-                        os.path.join(self.args.save_dir, f'D{str(self.iteration).zfill(7)}.pt'))  
+                        os.path.join(self.args.save_dir, 'ckpt', f'D{str(self.iteration).zfill(7)}.pt'))  
             else:
                 if not self.args.no_mlp:
                     torch.save(
                         {'netD': self.netD.state_dict(), 'MLP': self.contrastive_loss.mlp.state_dict()}, 
-                        os.path.join(self.args.save_dir, f'D{str(self.iteration).zfill(7)}.pt'))
+                        os.path.join(self.args.save_dir, 'ckpt', f'D{str(self.iteration).zfill(7)}.pt'))
                 else:
                     torch.save(self.netD.state_dict(), 
-                        os.path.join(self.args.save_dir, f'D{str(self.iteration).zfill(7)}.pt'))                  
+                        os.path.join(self.args.save_dir, 'ckpt', f'D{str(self.iteration).zfill(7)}.pt'))                  
 
             torch.save(
                 {'optimG': self.optimG.state_dict(), 'optimD': self.optimD.state_dict()}, 
-                os.path.join(self.args.save_dir, f'O{str(self.iteration).zfill(7)}.pt'))
+                os.path.join(self.args.save_dir, 'ckpt', f'O{str(self.iteration).zfill(7)}.pt'))
             
 
     def train(self):
@@ -126,9 +133,16 @@ class Trainer():
             pbar = tqdm(range(self.args.iterations), initial=self.iteration, dynamic_ncols=True, smoothing=0.01)
             timer_data, timer_model = timer(), timer()
 
+        num_epoch_iter = len(self.dataloader) // (self.args.batch_size * self.args.world_size)
+        current_epoch = -1
+
         for idx in pbar:
             self.iteration += 1
-            images, masks, filename = next(self.dataloader)
+            if self.args.distributed and (self.iteration-1) % num_epoch_iter == 0:
+                current_epoch += 1
+                self.dataloader.sampler.set_epoch(current_epoch)
+
+            images, masks, filename = next(self.dataloader_generator)
             images, masks = images.cuda(), masks.cuda()
             images_masked = (images * (1 - masks).float()) + masks
 
@@ -146,8 +160,7 @@ class Trainer():
 
             # optimize D
             
-            D_losses[f"global_advd"] = self.global_adv_loss.D(self.netD, comp_img, images) 
-            D_losses[f"scat_advd"] = self.SCAT_loss.D(self.netD, comp_img, images, 1-masks)
+            D_losses[f"global_advd"], D_losses[f"scat_advd"] = self.dualadv_loss.D(self.netD, comp_img, images, 1-masks)
             self.optimD.zero_grad()
             sum(D_losses.values()).backward()         
             self.optimD.step()
@@ -157,11 +170,9 @@ class Trainer():
             for name, weight in self.args.rec_loss.items(): 
                 G_losses[name] = weight * self.rec_loss_func[name](pred_img, images)
 
-            # global adversarial loss
-            G_losses[f"global_advg"] = self.global_adv_loss.G(self.netD, comp_img) * self.args.adv_weight
-            
-            # SCAT loss 
-            G_losses[f"scat_advg"] = self.SCAT_loss.G(self.netD, comp_img, 1-masks) * self.args.adv_weight
+            # dual adversarial loss
+            G_losses[f"global_advg"], G_losses[f"scat_advg"] = self.dualadv_loss.G(self.netD, comp_img, 1-masks)
+            G_losses[f"global_advg"], G_losses[f"scat_advg"] = self.args.adv_weight * G_losses[f"global_advg"], self.args.adv_weight * G_losses[f"scat_advg"]
 
             # contrastive learning losses
             textural_loss, semantic_loss = self.contrastive_loss(images_masked, comp_img, images, masks, 5)

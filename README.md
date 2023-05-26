@@ -9,7 +9,7 @@ Generative Image Inpainting with Segmentation Confusion Adversarial Training and
 <!-- ------------------------------------------------ -->
 ## Citation
 If any part of our paper and code is helpful to your work, 
-please generously cite and star us :kissing_heart: :kissing_heart: :kissing_heart: !
+please generously cite and star us!
 
 ```
 @article{zuo2023generative,
