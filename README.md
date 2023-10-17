@@ -25,7 +25,7 @@ please generously cite and star us!
 ## Introduction 
 We present a new adversarial training framework for image inpainting with segmentation confusion adversarial training (SCAT) and contrastive learning. 
 1) **First, inspired by how humans recognize a low-quality repaired image, we propose SCAT, playing an adversarial game between an inpainting generator and a segmentation network. The segmentation network labels the generated and valid regions in the inpainting image. On the contrary, the inpainting generator tries to deceive the segmentation network by filling the missing regions with more visually plausible and consistent contents, making it more difficult for the segmentation network to label the two regions. SCAT provides pixel-level local training signals for our framework and can flexibly handle images with free-form holes.** 
-2) **To stabilize and improve our model’s training, we further propose contrastive learning losses by exploiting the feature representation space of the discriminator, in which the inpainting images are pulled closer to the ground truth images but pushed farther from the corrupted images. As the training process of image inpainting can be regarded as learning a mapping from the corrupted images to the ground truth images, our proposed contrastive losses can better guide the process with their pull and push forces, bringing more realistic inpainting results.**
+2) **To stabilize and improve training, we further propose contrastive learning losses by exploiting the feature representation space of the discriminator, in which the inpainting images are pulled closer to the ground truth images but pushed farther from the corrupted images. As the training process of image inpainting can be regarded as learning a mapping from the corrupted images to the ground truth images, our proposed contrastive losses can better guide the process with their pull and push forces, bringing more realistic inpainting results.**
 
 <!-- ------------------------------------------------ -->
 ## Results
@@ -56,7 +56,7 @@ conda activate inpainting
 <!-- --------------------------------- -->
 ## Datasets 
 
-1. Download images and masks, note that our models are trained using irregular masks from [PConv](https://github.com/NVIDIA/partialconv). For using random masks as in Co-Mod-GAN[https://github.com/zsyzzsoft/co-mod-gan], you can specify `--mask_type random`, which may gain better performance.
+1. Download images and masks, note that our models are trained using irregular masks from [PConv](https://github.com/NVIDIA/partialconv). For using random masks as in [Co-Mod-GAN](https://github.com/zsyzzsoft/co-mod-gan), you can specify `--mask_type random`, which may gain better performance.
 2. Specify the path to training data by `--dir_image` and `--dir_mask`.
 
 
