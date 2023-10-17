@@ -38,9 +38,6 @@ class Trainer():
             self.netD = net.ResUnetDiscriminator(args).cuda()
         self.contrastive_loss = getattr(loss_module, 'Contrastive')(args, self.netD, args.no_mlp)
         
-        if args.global_rank == 0:
-            self.load()
-        
         if args.distributed:
             self.netG = DDP(self.netG, device_ids= [args.local_rank], output_device=[args.local_rank])
             self.netD = DDP(self.netD, device_ids= [args.local_rank], output_device=[args.local_rank])
@@ -56,6 +53,9 @@ class Trainer():
         self.optimD = torch.optim.Adam(
             self.netD.parameters(), lr=args.lrd, betas=(args.beta1, args.beta2))
         
+        if args.resume:
+            self.load()     
+
         if args.tensorboard: 
             self.writer = SummaryWriter(os.path.join(args.save_dir, 'log'))
             
@@ -63,7 +63,10 @@ class Trainer():
     def load(self):
         try: 
             gpath = sorted(list(glob(os.path.join(self.args.save_dir, 'ckpt', 'G*.pt'))))[-1]
-            self.netG.load_state_dict(torch.load(gpath, map_location='cuda'))
+            if isinstance(self.netG, DDP):
+                self.netG.module.load_state_dict(torch.load(gpath, map_location='cuda'))
+            else:
+                self.netG.load_state_dict(torch.load(gpath, map_location='cuda'))
             self.iteration = int(os.path.basename(gpath)[1:-3])
             if self.args.global_rank == 0: 
                 print(f'[**] Loading generator network from {gpath}')
@@ -74,12 +77,19 @@ class Trainer():
             dpath = sorted(list(glob(os.path.join(self.args.save_dir, 'ckpt', 'D*.pt'))))[-1]
             data = torch.load(dpath, map_location='cuda')
             if not self.args.no_mlp:
-                self.netD.load_state_dict(data['netD'])
-                self.contrastive_loss.mlp.load_state_dict(data['MLP'])
+                if isinstance(self.netD, DDP):
+                    self.netD.module.load_state_dict(data['netD'])
+                    self.contrastive_loss.mlp.module.load_state_dict(data['MLP'])
+                else:
+                    self.netD.load_state_dict(data['netD'])
+                    self.contrastive_loss.mlp.load_state_dict(data['MLP'])
                 if self.args.global_rank == 0: 
                     print(f'[**] Loading discriminator and mlp network from {dpath}')
             else:
-                self.netD.load_state_dict(data)
+                if isinstance(self.netD, DDP):
+                    self.netD.module.load_state_dict(data)
+                else:
+                    self.netD.load_state_dict(data)
                 if self.args.global_rank == 0: 
                     print(f'[**] Loading discriminator network from {dpath}')                
         except: 
@@ -134,7 +144,7 @@ class Trainer():
             timer_data, timer_model = timer(), timer()
 
         num_epoch_iter = len(self.dataloader) // (self.args.batch_size * self.args.world_size)
-        current_epoch = -1
+        current_epoch = self.iteration // num_epoch_iter
 
         for idx in pbar:
             self.iteration += 1
