@@ -24,8 +24,8 @@ please generously cite and star us!
 <!-- ---------------------------------------------------- -->
 ## Introduction 
 We present a new adversarial training framework for image inpainting with segmentation confusion adversarial training (SCAT) and contrastive learning. 
-1) **SCAT plays an adversarial game between an inpainting generator and a segmentation network, which provides pixel-level local training signals for our framework and can flexibly handle images with free-form holes.** 
-2) **The proposed contrastive learning losses stabilize and improve our inpainting model's training by exploiting the feature representation space of the discriminator, in which the inpainting images are pulled closer to the ground truth images but pushed farther from the corrupted images.**
+1) **First, inspired by how humans recognize a low-quality repaired image, we propose SCAT, playing an adversarial game between an inpainting generator and a segmentation network. The segmentation network labels the generated and valid regions in the inpainting image. On the contrary, the inpainting generator tries to deceive the segmentation network by filling the missing regions with more visually plausible and consistent contents, making it more difficult for the segmentation network to label the two regions. SCAT provides pixel-level local training signals for our framework and can flexibly handle images with free-form holes.** 
+2) **To stabilize and improve our model’s training, we further propose contrastive learning losses by exploiting the feature representation space of the discriminator, in which the inpainting images are pulled closer to the ground truth images but pushed farther from the corrupted images. As the training process of image inpainting can be regarded as learning a mapping from the corrupted images to the ground truth images, our proposed contrastive losses can better guide the process with their pull and push forces, bringing more realistic inpainting results.**
 
 <!-- ------------------------------------------------ -->
 ## Results
@@ -56,20 +56,26 @@ conda activate inpainting
 <!-- --------------------------------- -->
 ## Datasets 
 
-1. download images and masks
-2. specify the path to training data by `--dir_image` and `--dir_mask`.
-
+1. Download images and masks, note that our models are trained using irregular masks from [PConv](https://github.com/NVIDIA/partialconv). For using random masks as in Co-Mod-GAN[https://github.com/zsyzzsoft/co-mod-gan], you can specify `--mask_type random`, which may gain better performance.
+2. Specify the path to training data by `--dir_image` and `--dir_mask`.
 
 
 <!-- -------------------------------------------------------- -->
 ## Getting Started
 
 1. Training: 
-    * Run 
+    * For training on CelebA dataset, run 
     ```
     cd src 
-    python train.py --dir_image [image path] --dir_mask [mask path] --dataset [Places2 or CelebA] --iterations [Places2:1e6 CelebA:3e5]
+    python train.py --dir_image [image path] --dir_mask [pconv mask path] --dataset CelebA --iterations 300000 --crop_size 178 --transform centercrop
     ```
+    * For training on Places2 dataset, run 
+    ```
+    cd src 
+    python train.py --dir_image [image path] --scan_subdirs --dir_mask [pconv mask path] --dataset Places2 --iterations 1000000 --transform randomcrop
+    
+    ```
+
 2. Resume training:
     ```
     cd src
@@ -78,12 +84,12 @@ conda activate inpainting
 3. Testing:
     ```
     cd src 
-    python single_test.py --pre_train [path to pretrained model] --ipath [image path] --mpath [mask path] --outputs [out directory]
+    python single_test.py --pre_train [path to pretrained model] --ipath [image path] --mpath [mask path] --outputs [output path]
     ```
 4. Evaluating (calucating PSNR/SSIM/L1):
     ```
     cd src 
-    python test.py --pre_train [path to pretrained model] --dir_image [image path] --dir_mask [mask path] --outputs [out directory]
+    python test.py --pre_train [path to pretrained model] --dir_image [image path] --dir_mask [mask path] --outputs [output path]
     ```
 
 <!-- ------------------------------------------------------------------- -->
